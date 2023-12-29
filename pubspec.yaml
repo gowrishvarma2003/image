@@ -33,7 +33,9 @@ dependencies:
     sdk: flutter
   encrypt: ^5.0.0
   path_provider: ^2.0.8
-
+  image_picker: ^0.8.4
+  multi_image_picker: ^4.8.0
+  permission_handler: ^9.0.0
 
 
   # The following adds the Cupertino Icons font to your application.

@@ -3,6 +3,8 @@ import 'package:encrypt/encrypt.dart' as encrypt;
 import 'dart:typed_data';
 import 'dart:io';
 import 'package:flutter/services.dart';
+import 'package:image/input.dart';
+import 'package:image/single.dart';
 import 'dart:convert';
 import 'package:path_provider/path_provider.dart';
 
@@ -20,7 +22,7 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      home: Single(),
     );
   }
 }
