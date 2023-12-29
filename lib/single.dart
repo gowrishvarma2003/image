@@ -11,10 +11,8 @@ class Single extends StatefulWidget {
 }
 
 class SingleState extends State<Single> {
-  File? _image;
-  File? decryptedImageFile; // Variable to hold decrypted image
-  List<File> encryptedImageFiles = [];
-  List<File> decryptedImageFiles = [];
+  List<File> _images = [];
+  List<File?> decryptedImages = []; // Variable to hold decrypted images
 
   final picker = ImagePicker();
 
@@ -23,77 +21,65 @@ class SingleState extends State<Single> {
 
     setState(() {
       if (pickedFile != null) {
-        _image = File(pickedFile.path);
+        _images.add(File(pickedFile.path));
       } else {
         print('No image selected.');
       }
     });
   }
 
-  Future<void> encryptImage(File imageFile) async {
-    print('Encrypting image...');
-    List<int> imageBytes = await imageFile.readAsBytes();
-
-    String imageString = base64Encode(imageBytes);
-
-    final key = encrypt.Key.fromLength(32);
-
-    final iv = encrypt.IV.fromLength(16);
-
-    final encrypter = encrypt.Encrypter(encrypt.AES(key));
-
-    final encryptedImage = encrypter.encrypt(imageString, iv: iv);
-
-    Directory appDocDir = await getApplicationDocumentsDirectory();
-    String appDocPath = appDocDir.path;
-
-    // Generate a unique identifier for the file name
-    final uniqueId = UniqueKey().toString();
-
-    File encryptedFile = File('$appDocPath/X_encrypted_$uniqueId.txt');
-    encryptedFile.writeAsStringSync(encryptedImage.base64);
-
-    // Save the encrypted file path to the list
-    encryptedImageFiles.add(encryptedFile);
-
-    print('Image encrypted successfully!');
-  }
-
-  Future<File?> decryptImage(File encryptedFile) async {
-    try {
-      String encryptedImageBase64 = await encryptedFile.readAsString();
+  Future<void> encryptImages(List<File> images) async {
+    print('Encrypting images...');
+    for (File imageFile in images) {
+      List<int> imageBytes = await imageFile.readAsBytes();
+      String imageString = base64Encode(imageBytes);
 
       final key = encrypt.Key.fromLength(32);
       final iv = encrypt.IV.fromLength(16);
-
       final encrypter = encrypt.Encrypter(encrypt.AES(key));
 
-      final decryptedImage = encrypter.decrypt64(encryptedImageBase64, iv: iv);
+      final encryptedImage = encrypter.encrypt(imageString, iv: iv);
 
-      List<int> decryptedBytes = base64Decode(decryptedImage);
+      Directory appDocDir = await getApplicationDocumentsDirectory();
+      String appDocPath = appDocDir.path;
 
-      Directory tempDir = await getTemporaryDirectory();
-      String tempPath = tempDir.path;
-
-      File decryptedFile = File('$tempPath/decrypted_image_${UniqueKey()}.jpg');
-      await decryptedFile.writeAsBytes(decryptedBytes);
-
-      return decryptedFile;
-    } catch (e) {
-      print('Error decrypting image: $e');
-      return null;
+      File encryptedFile = File(
+          '$appDocPath/${DateTime.now().millisecondsSinceEpoch}_encrypted.txt');
+      encryptedFile.writeAsStringSync(encryptedImage.base64);
     }
+    print('Images encrypted successfully!');
   }
 
-  Future<void> displayDecryptedImages() async {
-    for (var file in encryptedImageFiles) {
-      File? decryptedFile = await decryptImage(file);
+  Future<void> decryptImages() async {
+    try {
+      decryptedImages.clear();
+      Directory appDocDir = await getApplicationDocumentsDirectory();
+      String appDocPath = appDocDir.path;
 
-      if (decryptedFile != null) {
-        decryptedImageFiles.add(decryptedFile);
+      List<FileSystemEntity> fileList = Directory(appDocPath).listSync();
+
+      final key = encrypt.Key.fromLength(32);
+      final iv = encrypt.IV.fromLength(16);
+      final encrypter = encrypt.Encrypter(encrypt.AES(key));
+
+      for (FileSystemEntity file in fileList) {
+        if (file is File && file.path.endsWith("_encrypted.txt")) {
+          String encryptedImageBase64 = await file.readAsString();
+          final decryptedImage =
+          encrypter.decrypt64(encryptedImageBase64, iv: iv);
+          List<int> decryptedBytes = base64Decode(decryptedImage);
+          Directory tempDir = await getTemporaryDirectory();
+          String tempPath = tempDir.path;
+          File decryptedFile =
+              File('$tempPath/${file.path.split('/').last}.jpg');
+          await decryptedFile.writeAsBytes(decryptedBytes);
+          decryptedImages.add(decryptedFile);
+        }
       }
+      setState(() {});
+    } catch (e) {
+      print('Error decrypting images: $e');
     }
-    setState(() {}); // Update the state to trigger a re-render
   }
 
   @override
@@ -106,25 +92,29 @@ class SingleState extends State<Single> {
         child: Container(
           child: Column(
             children: [
-              if (_image != null) Image.file(_image!),
+              for (File image in _images) Image.file(image),
               TextButton(
                 onPressed: () {
-                  if (_image != null) {
-                    encryptImage(_image!);
+                  if (_images.isNotEmpty) {
+                    encryptImages(_images);
                   } else {
-                    print('No image selected.');
+                    print('No images selected.');
                   }
                 },
-                child: Text('Encrypt Image'),
+                child: Text('Encrypt Images'),
               ),
               TextButton(
                 onPressed: () {
-                  displayDecryptedImages(); // Update method call
+                  decryptImages();
                 },
-                child: Text('Decrypt Image'),
+                child: Text('Decrypt Images'),
               ),
-              if (decryptedImageFile != null)
-                Image.file(decryptedImageFile!), // Display decrypted image
+              if (decryptedImages.isNotEmpty)
+                Column(
+                  children: decryptedImages
+                      .map((image) => Image.file(image!))
+                      .toList(),
+                ), // Display decrypted images
             ],
           ),
         ),
